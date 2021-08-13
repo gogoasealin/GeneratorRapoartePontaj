@@ -8,14 +8,14 @@ namespace GeneratorRaportPontaje.Utils
 {
     class DefaultRaportValues
     {
-        public int employerCount { get; set; }
+        public int employeesCount { get; set; }
         public int wrongClocking { get; set; }
-        public int correctClocking { get; set; }
-        public int lowerClocking{ get; set; }
-        public int correctness { get; set; }
+        public double correctClocking { get; set; }
+        public double lowerClocking { get; set; }
+        public double correctness { get; set; }
         public DefaultRaportValues()
         {
-            employerCount = 0;
+            employeesCount = 0;
             wrongClocking = 0;
             correctClocking = 0;
             lowerClocking = 0;

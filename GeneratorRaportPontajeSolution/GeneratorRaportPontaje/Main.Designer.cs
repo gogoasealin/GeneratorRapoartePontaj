@@ -70,6 +70,7 @@ namespace GeneratorRaportPontaje
             this.generareRaportNouToolStripMenuItem.Name = "generareRaportNouToolStripMenuItem";
             this.generareRaportNouToolStripMenuItem.Size = new System.Drawing.Size(232, 26);
             this.generareRaportNouToolStripMenuItem.Text = "Restarteaza Aplicatia";
+            this.generareRaportNouToolStripMenuItem.Click += new System.EventHandler(this.generareRaportNouToolStripMenuItem_Click);
             // 
             // exitMenuItem
             // 

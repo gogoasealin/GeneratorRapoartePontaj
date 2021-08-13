@@ -1,18 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
-using System.Data.OleDb;
-using Microsoft.Office.Interop;
-using CsvHelper;
 using GeneratorRaportPontaje.Utils;
+using Npoi.Mapper;
 
+//http://www.zoeller.us/blog/2018/10/24/easiest-way-to-import-excel-files-in-c
 namespace GeneratorRaportPontaje
 {
     public partial class Main : Form
@@ -27,22 +20,24 @@ namespace GeneratorRaportPontaje
         Dictionary<string, Employee> allEmployeesData;
         Dictionary<int, int> dailyHoursMinimClocking;
         Dictionary<string, string> perimetru;
-
-        
+        TimeSheetRecord oldRow;
 
         public Main()
+        {
+            InitializeComponent();
+
+            InitializeVariables();
+        }
+
+
+        private void InitializeVariables()
         {
             raportTimesheetsPath = "";
             raportEmployersPath = "";
 
-            InitializeVariables();
+            raport_pontaje_nume_fisier.Text = "Nume Raport: ";
+            raport_angajati_nume_fisier.Text = "Nume Raport: ";
 
-            InitializeComponent();
-        }
-
-            
-        private void InitializeVariables()
-        {
             currentName = "";
 
             dailyHoursMinimClocking = new Dictionary<int, int>
@@ -56,6 +51,18 @@ namespace GeneratorRaportPontaje
 
             raportData = new Dictionary<string, DefaultRaportValues>
             {
+                {"Carmangerie + Pasare", new DefaultRaportValues()},
+                {"Panificatie", new DefaultRaportValues()},
+                {"Patiserie", new DefaultRaportValues()},
+                {"Cofetarie", new DefaultRaportValues()},
+                {"Gastro", new DefaultRaportValues()},
+                {"Legume fructe", new DefaultRaportValues()},
+                {"Pescarie", new DefaultRaportValues()},
+                {"Mezeluri si Branzeturi", new DefaultRaportValues()},
+                {"Congelate", new DefaultRaportValues()},
+                {"Lactate", new DefaultRaportValues()},
+                {"Dulciuri + Bebe", new DefaultRaportValues()},
+                {"Sarate", new DefaultRaportValues()},
                 {"Bauturi + Tabac", new DefaultRaportValues()},
                 {"Detergenti", new DefaultRaportValues()},
                 {"Parfumerie", new DefaultRaportValues()},
@@ -63,6 +70,7 @@ namespace GeneratorRaportPontaje
                 {"Menaj", new DefaultRaportValues()},
                 {"Cultura,jocuri,jucarii", new DefaultRaportValues()},
                 {"Auto", new DefaultRaportValues()},
+                {"Animalier", new DefaultRaportValues()},
                 {"Activitati exterioare", new DefaultRaportValues()},
                 {"Electronice / Electrocasnice", new DefaultRaportValues()},
                 {"Securitate", new DefaultRaportValues()},
@@ -73,60 +81,58 @@ namespace GeneratorRaportPontaje
                 {"Casa principala", new DefaultRaportValues()},
                 {"Case in linie", new DefaultRaportValues()},
                 {"RH", new DefaultRaportValues()},
-                { "Magazin", new DefaultRaportValues()},
             };
 
             perimetru = new Dictionary<string, string>
             {
-                {"Carmangerie", ""},
-                {"Carne congelata", ""},
-                {"Casa Principala", ""},
-                {"Case In Linie", ""},
-                {"Cdg Magazin", ""},
-                {"Cofetarie prod proprie", ""},
-                {"Comun Activitati exterioare", ""},
-                {"Comun Alimentatie Speciala", ""},
-                {"Comun Animalier", ""},
-                {"Comun Auto Brico", ""},
-                {"Comun Bauturi cu alcool", ""},
-                {"Comun Bauturi fara alcool", ""},
-                {"Comun Bebe", ""},
-                {"Comun Branzeturi", ""},
-                {"Comun Congelate", ""},
-                {"Comun Cultura jocuri jucarii", ""},
-                {"Comun Deterg Igienizarea Casei", ""},
-                {"Comun Dulciuri", ""},
-                {"Comun Electrocasnice", ""},
-                {"Comun Electronice, Multimedia", ""},
-                {"Comun Fructe si Legume", ""},
-                {"Comun Frumusete", ""},
-                {"Comun Lactate", ""},
-                {"Comun Menaj", ""},
-                {"Comun Mezeluri", ""},
-                {"Comun Sarate", ""},
-                {"Comun Tabac", ""},
-                {"Comun Textile", ""},
-                {"Decorare", ""},
-                {"E-commerce", ""},
-                {"Gastro productie proprie", ""},
-                {"Gastro semipreparate", ""},
-                {"Intretinere", ""},
-                {"Panificatie prod proprie", ""},
-                {"Pasare", ""},
-                {"Patiserie prod proprie", ""},
-                {"Peste Proaspat", ""},
-                {"Peste procesat", ""},
-                {"Receptie marfa", ""},
-                {"Resurse Umane", ""},
-                {"Securitate", ""},
-                {"SSM SU", ""},
+                {"Carmangerie", "Carmangerie + Pasare"},
+                {"Carne congelata", "Congelate"},
+                {"Casa Principala", "Casa principala"},
+                {"Case In Linie", "Case in linie"},
+                {"Cdg Magazin", "CDG + Deco"},
+                {"Cofetarie prod proprie", "Cofetarie"},
+                {"Comun Activitati exterioare", "Activitati exterioare"},
+                {"Comun Alimentatie Speciala", "Dulciuri + Bebe"},
+                {"Comun Animalier", "Animalier"},
+                {"Comun Auto Brico", "Auto"},
+                {"Comun Bauturi cu alcool", "Bauturi + Tabac"},
+                {"Comun Bauturi fara alcool", "Bauturi + Tabac"},
+                {"Comun Bebe", "Dulciuri + Bebe"},
+                {"Comun Branzeturi", "Mezeluri si Branzeturi"},
+                {"Comun Congelate", "Congelate"},
+                {"Comun Cultura jocuri jucarii", "Cultura,jocuri,jucarii"},
+                {"Comun Deterg Igienizarea Casei", "Detergenti"},
+                {"Comun Dulciuri", "Dulciuri + Bebe"},
+                {"Comun Electrocasnice", "Electronice / Electrocasnice"},
+                {"Comun Electronice, Multimedia", "Electronice / Electrocasnice"},
+                {"Comun Fructe si Legume", "Legume fructe"},
+                {"Comun Frumusete", "Parfumerie"},
+                {"Comun Lactate", "Lactate"},
+                {"Comun Menaj", "Menaj"},
+                {"Comun Mezeluri", "Mezeluri si Branzeturi"},
+                {"Comun Sarate", "Sarate"},
+                {"Comun Tabac", "Bauturi + Tabac"},
+                {"Comun Textile", "Textile"},
+                {"Decorare", "CDG + Deco"},
+                {"E-commerce", "E-commerce"},
+                {"Gastro productie proprie", "Gastro"},
+                {"Gastro semipreparate", "Gastro"},
+                {"Intretinere", "Intretinere"},
+                {"Panificatie prod proprie", "Panificatie"},
+                {"Pasare", "Carmangerie + Pasare"},
+                {"Patiserie prod proprie", "Patiserie"},
+                {"Peste Proaspat", "Pescarie"},
+                {"Peste procesat", "Pescarie"},
+                {"Receptie marfa", "Receptie Food si Non Food"},
+                {"Resurse Umane", "RH"},
+                {"Securitate", "Securitate"},
             };
 
             allEmployeesData = new Dictionary<string, Employee>();
 
             raportCurrentValues = new DefaultRaportValues();
             currentEmployeeData = new CurrentEmployee();
-
+            oldRow              = new TimeSheetRecord();
         }
 
         private void about_MenuItem_Click(object sender, EventArgs e)
@@ -178,101 +184,134 @@ namespace GeneratorRaportPontaje
                 return;
             }
 
-            string raportName = DateTime.Now.ToString();
+            allEmployeesData = new Dictionary<string, Employee>();
 
-            getEmployeesData(raportEmployersPath);
-            generateRaport(raportTimesheetsPath);
+            try
+            {
 
-            MessageBox.Show("Raportul a fost generat cu success:" + raportName, "Success!");
+                getEmployeesData(raportEmployersPath);
+
+                generateRaportData(raportTimesheetsPath);
+
+                generateRaport();
+
+                MessageBox.Show("Raportul a fost generat cu success", "Success!");
+            } catch (Exception error)
+            {
+                MessageBox.Show("Raportul NU a fost generat!!! \n " + error.Message, "Error!");
+            }
         }
 
         private void getEmployeesData(string raportEmployersPath)
         {
-            int headerIndex = 0;
+            var mapper = new Mapper(raportEmployersPath);
+            var rows = mapper.Take<Employee>("Sheet1");
 
-            string[] lines = File.ReadAllLines(raportEmployersPath);
-            string[] fields = lines[headerIndex].Split(new char[] { ',' });
-
-            int linesLength = lines.Length;
-
-            for (int i = 1; i < linesLength; i++)
+            foreach (var row in rows)
             {
-                string[] currentEmployerData = lines[i].Split(new char[] { ',' });
+                var rowValue = row.Value;
 
-                if (string.IsNullOrEmpty(currentEmployerData[0]))
+                if (string.IsNullOrEmpty(rowValue.nrCrt))
                 {
                     continue;
                 }
 
-                processEmployeeData(currentEmployerData);
+                processEmployeeData(rowValue);
             }
         }
 
-        private void processEmployeeData(string[] currentEmployerData)
+        private void processEmployeeData(Employee currentEmployeeData)
         {
-            Employee currentData = new Employee(currentEmployerData);
-
-            allEmployeesData.Add(currentData.nrMarca, currentData);
+            allEmployeesData.Add(currentEmployeeData.nrMarca, currentEmployeeData);
         }
 
-        private void generateRaport(string raportTimesheetsPath)
+        private void generateRaportData(string raportTimesheetsPath)
         {
-            int headerIndex = 0;
+            Mapper mapper = getMapper(raportTimesheetsPath);
 
-            string[] lines = File.ReadAllLines(raportTimesheetsPath);
-            string[] fields = lines[headerIndex].Split(new char[] { ',' });
+            var rows = mapper.Take<TimeSheetRecord>("Sheet1");
 
-            int linesLength = lines.Length;
-
-            for (int i = 1; i < linesLength; i++)
+            foreach (var row in rows)
             {
-                string[] currentEmployerData = lines[i].Split(new char[] { ',' });
+                var rowValues = row.Value;
 
-                if (string.IsNullOrEmpty(currentEmployerData[0]))
+                if (string.IsNullOrEmpty(rowValues.nrCrt))
                 {
                     continue;
                 }
 
-                calculateEmployeeData(currentEmployerData);
+                calculateEmployeeData(rowValues);
+
+                oldRow = rowValues;
             }
+
+            //process the last employee
+            updateRaportData();
         }
 
-        private void calculateEmployeeData(string[] currentEmployerData)
+        private Mapper getMapper(string raportTimesheetsPath)
+        {
+            MyMapper myMapper = new MyMapper(raportTimesheetsPath);
+            Mapper mapper = myMapper.getMapper();
+
+            return mapper;
+        }
+
+        private void calculateEmployeeData(TimeSheetRecord row)
         {
             bool mistakeMade = false;
 
-            TimeSheetRecord currentData = new TimeSheetRecord(currentEmployerData);
-
-            if(allEmployeesData.ContainsKey(currentData.nrMarca) == false)
+            if (allEmployeesData.ContainsKey(row.nrMarca) == false
+                || row.functie.Contains("Manager") == true) 
             {
                 return;
             }
 
-            if (currentName != currentData.numeAngajat)
+            if (currentName != row.numeAngajat)
             {
                 if (currentName != "")
                 {
                     updateRaportData();
                 }
 
-                currentEmployeeData.employerID = currentData.nrMarca;
+                currentName = row.numeAngajat;
+                currentEmployeeData.employerID = row.nrMarca;
+                currentEmployeeData.mistakesCount = 0;
+                currentEmployeeData.lowerClockingCount = 0;
+                currentEmployeeData.perimetru = allEmployeesData[row.nrMarca].centruCost;
             }
 
-            int intrariSize = currentData.intrari.Length;
+            int intrariSize = row.recordsIntrari.Length;
+            bool nightShift = false;
             for (int index = 0; index < intrariSize; index++)
             {
-                if (string.IsNullOrEmpty(currentData.intrari[index]) == true)
+                if(index == 0)
                 {
-                    if (string.IsNullOrEmpty(currentData.iesiri[index]) == false)
+                    if (string.IsNullOrEmpty(row.recordsIntrari[index]) == true && string.IsNullOrEmpty(row.recordsIesiri[index]) == false)
+                    {
+                        int lastRecordsIntrariCount = count_array_values_after_index(oldRow.recordsIntrari, 1);
+                        int lastRecordsIesiriCount = count_array_values_after_index(oldRow.recordsIesiri, 0);
+                        if (lastRecordsIntrariCount + lastRecordsIesiriCount == 0)
+                        {
+                            currentEmployeeData.mistakesCount--;
+                            nightShift = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrEmpty(row.recordsIntrari[index]) == true)
+                {
+                    if (string.IsNullOrEmpty(row.recordsIesiri[index]) == false)
                     {
                         mistakeMade = true;
                         currentEmployeeData.mistakesCount++;
                         break;
                     }
                 }
-                else if (string.IsNullOrEmpty(currentData.intrari[index]) == false)
+                else if (string.IsNullOrEmpty(row.recordsIntrari[index]) == false)
                 {
-                    if (string.IsNullOrEmpty(currentData.iesiri[index]) == true)
+                    if (string.IsNullOrEmpty(row.recordsIesiri[index]) == true)
                     {
                         mistakeMade = true;
                         currentEmployeeData.mistakesCount++;
@@ -280,8 +319,8 @@ namespace GeneratorRaportPontaje
                     }
                 }
 
-                if (string.IsNullOrEmpty(currentData.intrari[index]) == true
-                    && string.IsNullOrEmpty(currentData.iesiri[index]) == true)
+                if (string.IsNullOrEmpty(row.recordsIntrari[index]) == true
+                    && string.IsNullOrEmpty(row.recordsIesiri[index]) == true)
                 {
                     break;
                 }
@@ -292,16 +331,22 @@ namespace GeneratorRaportPontaje
                 return;
             }
 
-            int employeeHoursPerDay = allEmployeesData[currentData.nrMarca].oreZiLucru;
+            int employeeHoursPerDay = allEmployeesData[row.nrMarca].oreZiLucru;
             int minHoursPerDay = dailyHoursMinimClocking[employeeHoursPerDay];
 
-            int intrariCount = count_array_values(currentData.intrari);
-            int iesirCount = count_array_values(currentData.iesiri);
+            int intrariCount = count_array_values(row.recordsIntrari);
+            int iesirCount = count_array_values(row.recordsIesiri);
+
+            if (nightShift)
+            {
+                intrariCount += 1;
+            }
+
             int employeeClocking = intrariCount + iesirCount;
 
             if (employeeClocking < minHoursPerDay)
             {
-                currentEmployeeData.mistakesCount++;
+                mistakeMade = true;
                 currentEmployeeData.lowerClockingCount++;
             }
         }
@@ -320,27 +365,107 @@ namespace GeneratorRaportPontaje
             return size;
         }
 
+        private int count_array_values_after_index(string[] array, int index)
+        {
+            int size = 0;
+            int arrayLength = array.Length;
+
+            for(int i = index; i < arrayLength; i++)
+            {
+                if (string.IsNullOrEmpty(array[i]) == false)
+                {
+                    size++;
+                }
+            }
+            return size;
+        }
+
         private void updateRaportData()
         {
             string currentPerimetru = perimetru[currentEmployeeData.perimetru];
-            raportData[currentPerimetru].employerCount++;
 
-            if (currentEmployeeData.lowerClockingCount > 3)
+            if(string.IsNullOrEmpty(currentPerimetru))
+            {
+                throw new InvalidOperationException("CurrentPerimetru nu exista: " + currentEmployeeData.perimetru);
+            }
+
+            raportData[currentPerimetru].employeesCount++;
+
+            if (currentEmployeeData.mistakesCount > 3 && currentEmployeeData.mistakesCount > currentEmployeeData.lowerClockingCount)
+            {
+                raportData[currentPerimetru].wrongClocking++;
+            }
+            else if (currentEmployeeData.lowerClockingCount > 3)
             {
                 raportData[currentPerimetru].lowerClocking++;
             }
-
-            if (currentEmployeeData.mistakesCount > 3)
+            else if (currentEmployeeData.mistakesCount + currentEmployeeData.lowerClockingCount > 3)
             {
-                raportData[currentPerimetru].wrongClocking++;
-            } else
+                if (currentEmployeeData.mistakesCount >= currentEmployeeData.lowerClockingCount)
+                {
+                    raportData[currentPerimetru].wrongClocking++;
+                } else
+                {
+                    raportData[currentPerimetru].lowerClocking++;
+                }
+            }
+            else 
             {
                 raportData[currentPerimetru].correctClocking++;
             }
             
-            raportData[currentPerimetru].correctness = raportData[currentPerimetru].correctClocking / raportData[currentPerimetru].employerCount;
+            raportData[currentPerimetru].correctness = raportData[currentPerimetru].correctClocking / raportData[currentPerimetru].employeesCount;
+        }
+
+        private void generateRaport()
+        {
+            //string raportName = DateTime.Now.ToString() + ".xlsx";
+            string raportName = "RaportPontaje.xlsx";
+            var mapper = new Mapper();
+         
+            mapper.Save(raportName);
+
+            int index = 1;
+
+            List<ExportData> rows = new List<ExportData>();
+
+            ExportData storeData = new ExportData();
+
+            foreach (var raport in raportData)
+            {
+                ExportData row = new ExportData();
+                    
+                row.nrCrt              = index;
+                row.perimetru          = raport.Key;
+                row.employeesCount     = raport.Value.employeesCount;
+                row.correctCount       = raport.Value.correctClocking;
+                row.mistakesCount      = raport.Value.wrongClocking;
+                row.lowerClockingCount = raport.Value.lowerClocking;
+                row.correctness        = raport.Value.correctness;
+
+                rows.Add(row);
+
+                index += 1;
+
+                storeData.perimetru          = "Magazin";
+                storeData.employeesCount     += row.employeesCount;
+                storeData.correctCount       += row.correctCount;
+                storeData.mistakesCount      += row.mistakesCount;
+                storeData.lowerClockingCount += row.lowerClockingCount;
+                storeData.correctness        = storeData.correctCount / storeData.employeesCount;
+            }
+            storeData.nrCrt = index;
+            rows.Add(storeData);
+
+            mapper.Put(rows, "sheet1");
+            //mapper.Save("E:\\GitRepository\\GeneratorRapoartePontaj\\GeneratorRaportPontajeSolution\\GeneratorRaportPontaje\\bin\\Debug\\test.xlsx");
+            mapper.Save(raportName);
+        }
+
+        private void generareRaportNouToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            InitializeVariables();
         }
     }
 
-    
 }

@@ -81,6 +81,7 @@ namespace GeneratorRaportPontaje
                 {"Casa principala", new DefaultRaportValues()},
                 {"Case in linie", new DefaultRaportValues()},
                 {"RH", new DefaultRaportValues()},
+                {"SSM", new DefaultRaportValues()},
             };
 
             perimetru = new Dictionary<string, string>
@@ -125,6 +126,7 @@ namespace GeneratorRaportPontaje
                 {"Peste procesat", "Pescarie"},
                 {"Receptie marfa", "Receptie Food si Non Food"},
                 {"Resurse Umane", "RH"},
+                {"SSM SU", "SSM"},
                 {"Securitate", "Securitate"},
             };
 
@@ -186,8 +188,7 @@ namespace GeneratorRaportPontaje
 
             allEmployeesData = new Dictionary<string, Employee>();
 
-            try
-            {
+            try {
 
                 getEmployeesData(raportEmployersPath);
 
@@ -196,9 +197,13 @@ namespace GeneratorRaportPontaje
                 generateRaport();
 
                 MessageBox.Show("Raportul a fost generat cu success", "Success!");
-            } catch (Exception error)
-            {
-                MessageBox.Show("Raportul NU a fost generat!!! \n " + error.Message, "Error!");
+            } catch (Exception error) {
+                if (error.Message == "The given key was not present in the dictionary.") {
+                    MessageBox.Show("Raportul NU a fost generat!!! \n Centru Cost: " + currentEmployeeData.perimetru + " nu exista!", "Error!"); ;
+                } else
+                {
+                    MessageBox.Show("Raportul NU a fost generat!!! \n " + error.Message, "Error!");
+                }
             }
         }
 
